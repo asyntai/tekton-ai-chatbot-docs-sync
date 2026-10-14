@@ -1,0 +1,126 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: ai-chatbot-docs-sync
+  labels:
+    app.kubernetes.io/version: "1.0"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.50.0"
+    tekton.dev/categories: Documentation
+    tekton.dev/tags: ai, chatbot, documentation, knowledge-base, docs
+    tekton.dev/displayName: "Asyntai AI Chatbot Docs Sync"
+    tekton.dev/platforms: "linux/amd64"
+    artifacthub.io/category: integration-delivery
+    artifacthub.io/license: MIT
+    artifacthub.io/provider: Asyntai
+    artifacthub.io/maintainers: |
+      - name: Asyntai
+        email: hello@asyntai.com
+    artifacthub.io/links: |
+      - name: Documentation
+        url: https://asyntai.com/documentation/integrations/tekton/
+      - name: Asyntai
+        url: https://asyntai.com
+    artifacthub.io/changes: |
+      - kind: added
+        description: First release
+spec:
+  description: >-
+    Keep your Asyntai AI chatbot up to date with your documentation. The task
+    sends the Markdown and text files from a workspace to the Asyntai knowledge
+    base, one entry per file. Changed files replace their old entry, unchanged
+    files are skipped, so the chatbot on your website always answers from the
+    latest docs.
+
+  workspaces:
+    - name: source
+      description: The checked out repository that holds the documentation.
+      readOnly: true
+
+  params:
+    - name: docs-path
+      type: string
+      description: >-
+        The folder or file to send, relative to the root of the source
+        workspace. For example docs.
+    - name: file-patterns
+      type: string
+      default: "*.md,*.mdx,*.txt"
+      description: Comma-separated file name patterns to send.
+    - name: exclude
+      type: string
+      default: ""
+      description: >-
+        Comma-separated patterns to skip, matched against the path under
+        docs-path. For example drafts/*,CHANGELOG.md.
+    - name: title-prefix
+      type: string
+      default: ""
+      description: >-
+        Text put before every entry title, for example "Docs / ". Needed when
+        prune is true.
+    - name: website-id
+      type: string
+      default: ""
+      description: >-
+        The Asyntai website to send the files to. Leave empty for the first
+        website on the account.
+    - name: prune
+      type: string
+      default: "false"
+      description: >-
+        When "true", remove entries whose file is gone. Only entries that
+        start with title-prefix are removed.
+    - name: dry-run
+      type: string
+      default: "false"
+      description: When "true", list the files that would be sent and send nothing.
+    - name: api-key-secret
+      type: string
+      default: asyntai-api-key
+      description: The name of the Kubernetes Secret that holds the Asyntai API key.
+    - name: api-key-secret-key
+      type: string
+      default: api-key
+      description: The key inside that Secret.
+    - name: base-url
+      type: string
+      default: https://asyntai.com
+      description: The Asyntai server. Change it only for testing.
+    - name: image
+      type: string
+      default: docker.io/asyntai/ai-docs-sync:1.0.0@sha256:c383133620e7cdf2b8e7a72d39419f0511d0c5156ee68811503914e05b2c3a44
+      description: The image that runs the sync.
+
+  steps:
+    - name: sync
+      image: $(params.image)
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: ASYNTAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: $(params.api-key-secret)
+              key: $(params.api-key-secret-key)
+        - name: DOCS_PATH
+          value: $(params.docs-path)
+        - name: FILE_PATTERNS
+          value: $(params.file-patterns)
+        - name: EXCLUDE
+          value: $(params.exclude)
+        - name: TITLE_PREFIX
+          value: $(params.title-prefix)
+        - name: WEBSITE_ID
+          value: $(params.website-id)
+        - name: PRUNE
+          value: $(params.prune)
+        - name: DRY_RUN
+          value: $(params.dry-run)
+        - name: ASYNTAI_BASE_URL
+          value: $(params.base-url)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

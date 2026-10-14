@@ -1,0 +1,83 @@
+# Clone the repository, then send its docs folder to the Asyntai knowledge base.
+#
+# Create the API key Secret one time first:
+#   kubectl create secret generic asyntai-api-key --from-literal=api-key=YOUR_KEY
+#
+# Then: kubectl apply -f the Pipeline, and kubectl create -f the PipelineRun
+# (it uses generateName, so it needs create, not apply).
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: docs-to-asyntai
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: revision
+      type: string
+      default: main
+  workspaces:
+    - name: shared
+  tasks:
+    - name: fetch
+      taskRef:
+        resolver: hub
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: version
+            value: "0.9"
+      workspaces:
+        - name: output
+          workspace: shared
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: sync-docs
+      runAfter: ["fetch"]
+      taskRef:
+        resolver: hub
+        params:
+          - name: type
+            value: artifact
+          - name: kind
+            value: task
+          - name: name
+            value: ai-chatbot-docs-sync
+          - name: version
+            value: "1.0"
+          - name: catalog
+            value: asyntai
+      workspaces:
+        - name: source
+          workspace: shared
+      params:
+        - name: docs-path
+          value: docs
+        - name: title-prefix
+          value: "Docs / "
+        - name: prune
+          value: "true"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: docs-to-asyntai-
+spec:
+  pipelineRef:
+    name: docs-to-asyntai
+  params:
+    - name: repo-url
+      value: https://github.com/your-org/your-repo
+  workspaces:
+    - name: shared
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
