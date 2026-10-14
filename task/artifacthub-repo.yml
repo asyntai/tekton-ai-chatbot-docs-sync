@@ -1,0 +1,6 @@
+# Artifact Hub repository metadata (must sit at the path used in the
+# repository URL, which is this task folder).
+repositoryID: 13b799c0-7b7b-4507-8952-bdd4a1cf3664
+owners:
+  - name: Asyntai
+    email: hello@asyntai.com

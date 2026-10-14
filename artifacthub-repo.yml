@@ -1,7 +1,0 @@
-# Artifact Hub repository metadata.
-# After the repository is added on artifacthub.io, put the repository ID from
-# the control panel here, so the publisher shows as verified.
-# repositoryID: <filled in after adding the repository>
-owners:
-  - name: Asyntai
-    email: hello@asyntai.com
